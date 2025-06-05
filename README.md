@@ -17,8 +17,8 @@ gsutil -m cp -r gs://hdrplusdata/20171106_subset .
 ```
 
 ## Prerequisites
-- python 3.10.x
-`pip install -r requirements.txt`
+- python 3.10.x: `conda create -n hdrplus python=3.10`
+- `pip install -r requirements.txt`
 
 ## Examples
 Input            |  Output
