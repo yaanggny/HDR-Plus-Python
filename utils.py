@@ -123,6 +123,8 @@ def gaussian_down4(input, name):
                               / 159)
 
     k.compute_root().parallel(y).parallel(x)
+    for i in range(k.num_update_definitions()):
+        k.update(i).unscheduled() 
     output.compute_root().parallel(y).vectorize(x, 16)
 
     return output

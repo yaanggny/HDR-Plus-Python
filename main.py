@@ -1,7 +1,8 @@
 import numpy as np
 import rawpy
 import imageio
-import os
+import os, sys, glob
+import os.path as opath
 import multiprocessing
 import halide as hl
 from datetime import datetime
@@ -11,7 +12,7 @@ os.environ['KIVY_NO_CONSOLELOG'] = '1' # Comment this line when debugging UI
 from kivy.app import App
 from kivy.uix.floatlayout import FloatLayout
 from kivy.factory import Factory
-from kivy.properties import ObjectProperty
+from kivy.properties import ObjectProperty, StringProperty
 from kivy.uix.popup import Popup
 from kivy.uix.label import Label
 from kivy.uix.button import Button
@@ -21,6 +22,10 @@ from utils import time_diff
 from align import align_images
 from merge import merge_images
 from finish import finish_image
+
+from PIL import Image
+import tiffile
+
 
 '''
 Loads a raw image
@@ -93,18 +98,10 @@ def load_images(burst_path):
 
     # Create list of paths to the images
     paths = []
-    for i in range(100):
-        if i < 10:
-            filename = f'payload_N00{i}.dng'
-        else:
-            filename = f'payload_N0{i}.dng'
-        file_path = f'{burst_path}/{filename}'
-        if os.path.isfile(file_path):
-            paths.append(file_path)
-        else:
-            if i == 0:
-                raise ValueError("Burst format not recognized.")
-            break
+    paths = glob.glob(opath.join(burst_path, '*.dng'))
+    if len(paths) == 0:
+        raise ValueError("Burst format [*.dng] not recognized.")
+    paths.sort(key=lambda x: int(x.split('load_N')[-1].split('.')[0]))
 
     # Load raw images
     print('Loading raw images...')
@@ -167,6 +164,7 @@ def HDR(burst_path, compression, gain, contrast, UI):
         print(f'Compression: {compression}, gain: {gain}, contrast: {contrast}')
 
         # Load the images
+        print('Loading images... from ', burst_path)
         images, ref_img, white_balance_r, white_balance_g0, white_balance_g1, white_balance_b, black_point, white_point, cfa_pattern, ccm = load_images(
             burst_path)
         Clock.schedule_once(partial(UI.update_progress, 20))
@@ -175,7 +173,9 @@ def HDR(burst_path, compression, gain, contrast, UI):
         assert images.dimensions() == 3, f"Incorrect buffer dimensions, expected 3 but got {images.dimensions()}"
         assert images.dim(2).extent() >= 2, f"Must have at least one alternate image"
         # Save the reference image
-        imageio.imsave('Output/input.jpg', ref_img)
+        print('Saving reference image...')
+        # imageio.imsave('Output/input.jpg', ref_img)
+        tiffile.imwrite("Output/input.tiff", ref_img)
 
         # Align the images
         alignment = align_images(images)
@@ -192,19 +192,22 @@ def HDR(burst_path, compression, gain, contrast, UI):
 
         Clock.schedule_once(partial(UI.update_progress, 30))
 
-        result = finished.realize(images.width(), images.height(), 3)
+        result = finished.realize([images.width(), images.height(), 3])
 
         Clock.schedule_once(partial(UI.update_progress, 90))
 
         print(f'Finishing finished in {time_diff(start_finish)} ms.\n')
 
         # If portrait orientation, rotate image 90 degrees clockwise
-        print(ref_img.shape)
+        print('ref_img.shape: ', ref_img.shape)
+        np_array = np.array(result, copy=False)  # (3, H, W)
+        print('np_array.shape(result): ', np_array.shape)
+        np_array = np.transpose(np_array, (1, 2, 0))  # (H, W, 3)
         if ref_img.shape[0] > ref_img.shape[1]:
             print('Rotating image')
-            result = np.rot90(result, -1)
-
-        imageio.imsave('Output/output.jpg', result)
+            np_array = np.rot90(np_array, -1)
+        print('np_array.shape(final): ', np_array.shape)
+        Image.fromarray(np_array).save('Output/output.jpg')
 
         Clock.schedule_once(partial(UI.update_progress, 100))
 
@@ -212,7 +215,7 @@ def HDR(burst_path, compression, gain, contrast, UI):
 
         # return 'Output/input.jpg', 'Output/output.jpg'
 
-        Clock.schedule_once(partial(UI.update_paths, 'Output/input.jpg', 'Output/output.jpg'))
+        Clock.schedule_once(partial(UI.update_paths, 'Output/input.tiff', 'Output/output.jpg'))
 
         Clock.schedule_once(UI.dismiss_progress)
 
@@ -238,7 +241,7 @@ class Imglayout(FloatLayout):
 class LoadDialog(FloatLayout):
     load = ObjectProperty(None)
     cancel = ObjectProperty(None)
-
+    path = StringProperty('')
 
 class Root(FloatLayout):
     loadfile = ObjectProperty(None)
@@ -332,6 +335,7 @@ class Root(FloatLayout):
 
     def show_load(self):
         content = LoadDialog(load=self.load, cancel=self.dismiss_popup)
+        content.path = r'E:\Dev\dataset\hdrplus'
         self._popup = Popup(title="Select burst image", content=content,
                             size_hint=(0.9, 0.9))
 

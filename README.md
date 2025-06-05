@@ -17,11 +17,7 @@ gsutil -m cp -r gs://hdrplusdata/20171106_subset .
 ```
 
 ## Prerequisites
-* Linux or MacOS
-* [LLVM](http://llvm.org/releases/download.html)
-* [Halide](https://github.com/halide/Halide)
-* [python_bindings](https://github.com/halide/Halide/tree/master/python_bindings)
-
+- python 3.10.x
 `pip install -r requirements.txt`
 
 ## Examples

@@ -83,6 +83,8 @@ Root:
         orientation: "vertical"
         FileChooserListView:
             id: filechooser
+            dirselect: True  # 允许选择文件夹
+            path: root.path  # 绑定到路径属性
 
         BoxLayout:
             size_hint_y: None

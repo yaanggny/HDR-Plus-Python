@@ -431,16 +431,21 @@ def gauss(input, k, rdom, name):
 
     val = hl.Expr("val")
 
+    print('input: ', input.type(), input.types())
+    print('input: ', input.output_buffers())
+
     if input.dimensions() == 2:
         blur_x[x, y] = hl.sum(input[x + rdom, y] * k[rdom])
         val = hl.sum(blur_x[x, y + rdom] * k[rdom])
-        if input.output_types()[0] == hl.UInt(16):
+        # if input.output_types()[0] == hl.UInt(16):
+        if input.type() == hl.UInt(16):
             val = hl.u16(val)
         output[x, y] = val
     else:
         blur_x[x, y, c] = hl.sum(input[x + rdom, y, c] * k[rdom])
         val = hl.sum(blur_x[x, y + rdom, c] * k[rdom])
-        if input.output_types()[0] == hl.UInt(16):
+        # if input.output_types()[0] == hl.UInt(16):
+        if input.type() == hl.UInt(16):
             val = hl.u16(val)
         output[x, y, c] = val
 
@@ -452,7 +457,8 @@ def gauss(input, k, rdom, name):
 
 
 def gauss_7x7(input, name):
-    k = hl.Buffer(hl.Float(32), [7], "gauss_7x7_kernel")
+    print('gauss_7x7 ...')
+    k = hl.Buffer(hl.Float(32), [7], "gauss_7x7_kernel_" +name)
     k.translate([-3])
 
     rdom = hl.RDom([(-3, 7)])
